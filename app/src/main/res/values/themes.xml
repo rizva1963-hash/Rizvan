@@ -1,0 +1,9 @@
+<resources>
+    <style name="Theme.Dohod" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/app_bg</item>
+        <item name="android:statusBarColor">@color/app_bg</item>
+        <item name="android:navigationBarColor">@color/app_bg</item>
+        <item name="android:colorAccent">#FFD9B96F</item>
+    </style>
+    <style name="Theme.Dohod.Voice" parent="Theme.Dohod" />
+</resources>

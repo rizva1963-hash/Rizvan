@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut android:enabled="true" android:icon="@drawable/ic_shortcut_mic" android:shortcutId="voice" android:shortcutShortLabel="@string/sc_voice">
+        <intent android:action="android.intent.action.VIEW" android:targetClass="ru.riz.dohod.VoiceActivity" android:targetPackage="ru.riz.dohod" />
+    </shortcut>
+    <shortcut android:enabled="true" android:icon="@drawable/ic_shortcut_mic" android:shortcutId="auto" android:shortcutShortLabel="@string/sc_auto">
+        <intent android:action="android.intent.action.VIEW" android:targetClass="ru.riz.dohod.MainActivity" android:targetPackage="ru.riz.dohod">
+            <extra android:name="tab" android:value="3" />
+        </intent>
+    </shortcut>
+</shortcuts>

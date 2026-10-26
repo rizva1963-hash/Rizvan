@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/w_root" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="16dp" android:background="@drawable/w_bg" >
+
+<LinearLayout android:id="@+id/w_info" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+<LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+<TextView android:id="@+id/t_label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Свободно в октябре" android:textSize="13sp" android:textColor="#FF8E959F" android:maxLines="1" android:ellipsize="end" android:includeFontPadding="false" />
+<TextView android:id="@+id/t_free" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="0 ₽" android:textSize="34sp" android:textColor="#FFF1EEE7" android:maxLines="1" android:ellipsize="end" android:includeFontPadding="false" android:fontFamily="serif" android:autoSizeTextType="uniform" android:autoSizeMinTextSize="16sp" android:autoSizeMaxTextSize="34sp" android:autoSizeStepGranularity="1sp" android:layout_marginTop="2dp"/>
+</LinearLayout>
+<LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="end" android:layout_marginStart="8dp">
+<TextView android:id="@+id/t_inc" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Доход 0 ₽" android:textSize="13sp" android:textColor="#FF8E959F" android:maxLines="1" android:ellipsize="end" android:includeFontPadding="false" /><TextView android:id="@+id/t_exp" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Расход 0 ₽" android:textSize="13sp" android:textColor="#FF8E959F" android:maxLines="1" android:ellipsize="end" android:includeFontPadding="false" android:layout_marginTop="4dp"/>
+</LinearLayout>
+</LinearLayout>
+<ImageView android:id="@+id/i_chart" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:layout_marginTop="10dp" android:layout_marginBottom="10dp" android:scaleType="fitCenter" android:contentDescription="Расходы за шесть месяцев"/>
+<LinearLayout android:id="@+id/b_voice" android:layout_width="match_parent" android:layout_height="44dp" android:orientation="horizontal" android:gravity="center" android:background="@drawable/w_btn_gold12">
+<ImageView android:layout_width="20dp" android:layout_height="20dp" android:src="@drawable/ic_mic" android:tint="#FF1A1407" android:contentDescription="Сказать вслух"/>
+<TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="10dp" android:text="Сказать вслух" android:textSize="16sp" android:textStyle="bold" android:textColor="#FF1A1407"/>
+</LinearLayout>
+</LinearLayout>

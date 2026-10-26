@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/w_root" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="horizontal" android:padding="6dp" android:background="@drawable/w_bg" >
+<LinearLayout android:id="@+id/q1" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:orientation="vertical" android:gravity="center">
+<ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_cup" android:tint="#FFF1EEE7" android:contentDescription="Кофе"/>
+<TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="5dp" android:text="Кофе" android:textSize="12sp" android:textColor="#FFF1EEE7" android:maxLines="1"/>
+</LinearLayout>
+<LinearLayout android:id="@+id/q2" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:orientation="vertical" android:gravity="center">
+<ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_bag" android:tint="#FFF1EEE7" android:contentDescription="Продукты"/>
+<TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="5dp" android:text="Продукты" android:textSize="12sp" android:textColor="#FFF1EEE7" android:maxLines="1"/>
+</LinearLayout>
+<LinearLayout android:id="@+id/q3" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:orientation="vertical" android:gravity="center">
+<ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_bus" android:tint="#FFF1EEE7" android:contentDescription="Транспорт"/>
+<TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="5dp" android:text="Транспорт" android:textSize="12sp" android:textColor="#FFF1EEE7" android:maxLines="1"/>
+</LinearLayout>
+<LinearLayout android:id="@+id/q4" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:orientation="vertical" android:gravity="center">
+<ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_mic" android:tint="#FFD9B96F" android:contentDescription="Другое"/>
+<TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="5dp" android:text="Другое" android:textSize="12sp" android:textColor="#FFD9B96F" android:maxLines="1" android:textStyle="bold"/>
+</LinearLayout>
+</LinearLayout>

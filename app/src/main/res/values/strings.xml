@@ -1,0 +1,32 @@
+<resources>
+    <string name="app_name">Доход/Расход</string>
+    <string name="sc_voice">Сказать вслух</string>
+    <string name="sc_auto">Автоучёт</string>
+
+    <string name="w_voice">Голос 1×1</string>
+    <string name="w_voice_desc">Кнопка записи голосом</string>
+    <string name="w_today">Сегодня 1×1</string>
+    <string name="w_today_desc">Расход за сегодня</string>
+    <string name="w_balance_small">Баланс 2×1</string>
+    <string name="w_balance_small_desc">Баланс счёта</string>
+    <string name="w_record">Кнопка записи 2×1</string>
+    <string name="w_record_desc">«Сказать вслух»</string>
+    <string name="w_month">Расход за месяц 2×1</string>
+    <string name="w_month_desc">Расход месяца и доля от дохода</string>
+    <string name="w_free">Остаток месяца 2×2</string>
+    <string name="w_free_desc">Свободно в этом месяце, доход и расход</string>
+    <string name="w_recent">Последние записи 2×2</string>
+    <string name="w_recent_desc">Четыре последние операции</string>
+    <string name="w_strip">Полоса 4×1</string>
+    <string name="w_strip_desc">Баланс, расход за сегодня и голос</string>
+    <string name="w_quick">Быстрый ввод 4×1</string>
+    <string name="w_quick_desc">Категория одним нажатием, сумма голосом</string>
+    <string name="w_balance_big">Баланс и записи 4×2</string>
+    <string name="w_balance_big_desc">Баланс, голос и две последние записи</string>
+    <string name="w_weeks">По неделям 4×2</string>
+    <string name="w_weeks_desc">Расход по неделям месяца</string>
+    <string name="w_cats">Категории 4×2</string>
+    <string name="w_cats_desc">Три крупнейшие категории месяца</string>
+    <string name="w_overview">Обзор 4×3</string>
+    <string name="w_overview_desc">Остаток, шесть месяцев расходов и голос</string>
+</resources>
