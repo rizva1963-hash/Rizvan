@@ -15,6 +15,7 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -78,6 +79,7 @@ class VoiceActivity : ComponentActivity() {
     private var seconds by mutableStateOf(0)
     private var errorText by mutableStateOf("")
     private var draft by mutableStateOf<Tx?>(null)
+    private var autoCancelled by mutableStateOf(false)
 
     private var recognizer: SpeechRecognizer? = null
     private var preset: String? = null
@@ -106,7 +108,10 @@ class VoiceActivity : ComponentActivity() {
             val demoText = if (debuggable) intent?.getStringExtra("demo_text") else null
             val demoPartial = if (debuggable) intent?.getStringExtra("demo_partial") else null
             when {
-                demoText != null -> onTexts(listOf(demoText))
+                demoText != null -> {
+                    onTexts(listOf(demoText))
+                    if (intent?.getBooleanExtra("demo_auto", false) != true) autoCancelled = true
+                }
                 demoPartial != null -> { partial = demoPartial; level = 0.7f; phase = Phase.LISTENING }
                 else -> listen()
             }
@@ -119,7 +124,7 @@ class VoiceActivity : ComponentActivity() {
     }
 
     private fun listen() {
-        partial = ""; finalText = ""; draft = null; seconds = 0; level = 0f
+        partial = ""; finalText = ""; draft = null; seconds = 0; level = 0f; autoCancelled = false
         phase = Phase.LISTENING
         if (!SpeechRecognizer.isRecognitionAvailable(this)) { fallback(); return }
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
@@ -224,6 +229,17 @@ class VoiceActivity : ComponentActivity() {
     private fun VoiceScreen() {
         val p = LocalPal.current
         var catOpen by remember { mutableStateOf(false) }
+        // Автозапись: через 1,5 с после распознавания запись сохраняется сама, пока не нажали «Исправить»
+        val autoOn = remember { Prefs.flag(this@VoiceActivity, Prefs.VOICE_AUTOSAVE, true) }
+        val prog = remember { Animatable(1f) }
+        val counting = autoOn && phase == Phase.RESULT && draft != null && !autoCancelled
+        LaunchedEffect(phase, draft, autoCancelled) {
+            if (counting) {
+                prog.snapTo(1f)
+                prog.animateTo(0f, tween(1500, easing = LinearEasing))
+                if (phase == Phase.RESULT && !autoCancelled) save()
+            }
+        }
 
         LaunchedEffect(phase) {
             if (phase == Phase.LISTENING) {
@@ -289,6 +305,7 @@ class VoiceActivity : ComponentActivity() {
                 if (phase == Phase.RESULT && d != null) {
                     CardBox(Modifier.rise(0), padding = 18.dp) {
                         KvRow("Тип", if (d.income) "Доход" else "Расход", showSep = false, onClick = {
+                            autoCancelled = true
                             draft = d.copy(income = !d.income, category = if (!d.income) "Доход" else "Прочее", kind = Kind.NORMAL)
                         })
                         Row(
@@ -298,7 +315,7 @@ class VoiceActivity : ComponentActivity() {
                             Text("Сумма", color = p.muted, fontSize = 14.sp, modifier = Modifier.weight(1f))
                             Text(signedRub(d), color = p.text, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, style = TextStyle(fontFeatureSettings = TNUM))
                         }
-                        KvRow("Категория", d.category, chevron = true, onClick = { catOpen = true })
+                        KvRow("Категория", d.category, chevron = true, onClick = { autoCancelled = true; catOpen = true })
                         if (d.person.isNotBlank()) KvRow("Человек", d.person)
                         KvRow("Дата", Stats.shortDate(System.currentTimeMillis()))
                     }
@@ -314,9 +331,23 @@ class VoiceActivity : ComponentActivity() {
 
                 Spacer(Modifier.weight(1f))
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    GoldButton("Записать", Modifier.fillMaxWidth(), enabled = phase == Phase.RESULT) { save() }
-                    GhostButton(if (phase == Phase.LISTENING) "Готово, я сказал" else "Сказать заново", Modifier.fillMaxWidth(), icon = R.drawable.ic_mic) {
-                        if (phase == Phase.LISTENING) recognizer?.stopListening() else listen()
+                    if (counting) {
+                        Text("Записываю через секунду. Если распознано не то, нажмите «Исправить»", color = p.muted, fontSize = 13.sp, lineHeight = 18.sp)
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .height(4.dp)
+                                .background(p.line)
+                        ) {
+                            Box(Modifier.fillMaxWidth(prog.value).height(4.dp).background(p.gold))
+                        }
+                        GoldButton("Записать сейчас", Modifier.fillMaxWidth()) { save() }
+                        GhostButton("Исправить", Modifier.fillMaxWidth()) { autoCancelled = true }
+                    } else {
+                        GoldButton("Записать", Modifier.fillMaxWidth(), enabled = phase == Phase.RESULT) { save() }
+                        GhostButton(if (phase == Phase.LISTENING) "Готово, я сказал" else "Сказать заново", Modifier.fillMaxWidth(), icon = R.drawable.ic_mic) {
+                            if (phase == Phase.LISTENING) recognizer?.stopListening() else listen()
+                        }
                     }
                 }
             }

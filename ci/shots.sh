@@ -44,6 +44,11 @@ tap "− Расход"; shot sheet_manual
 adb shell input keyevent 4
 tap "Kofemaniya"; tap "Кофемания"; shot sheet_edit
 adb shell input keyevent 4
+# Автозапись: фраза должна записаться сама, без нажатий
+adb shell "am start -n $PKG/.VoiceActivity --es demo_text 'кофе 777 рублей' --ez demo_auto true"; sleep 6
+adb shell "run-as $PKG cat files/transactions.json" > /tmp/tx_after.json
+if grep -q "777" /tmp/tx_after.json; then echo "AUTOSAVE OK" > $OUT/autosave.txt; else echo "AUTOSAVE FAILED" > $OUT/autosave.txt; fi
+adb shell am force-stop $PKG
 adb shell "am start -n $PKG/.VoiceActivity --es demo_text 'кофе 500 рублей'"; shot voice_result
 adb shell am force-stop $PKG
 adb shell "am start -n $PKG/.VoiceActivity --es demo_partial 'такси триста пятьдесят'"; shot voice_listen

@@ -216,6 +216,7 @@ object Prefs {
     const val AUTO_TBANK = "auto_tbank"
     const val AUTO_SMS = "auto_sms"
     const val AUTO_CONFIRM = "auto_confirm"
+    const val VOICE_AUTOSAVE = "voice_autosave"
 
     fun bankBalance(ctx: Context, source: String): Pair<Long, Long>? {
         val ts = p(ctx).getLong("bal_ts_$source", 0L)

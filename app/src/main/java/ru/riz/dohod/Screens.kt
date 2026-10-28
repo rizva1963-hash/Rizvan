@@ -852,6 +852,16 @@ fun MoreScreen(
         }
 
         item {
+            var voiceAuto by remember { mutableStateOf(Prefs.flag(ctx, Prefs.VOICE_AUTOSAVE, true)) }
+            Column {
+                SectionCaption("Голос", Modifier.padding(bottom = 2.dp))
+                ToggleRow(
+                    "Записывать сразу", "Через секунду после фразы, можно успеть исправить", voiceAuto, showSep = false
+                ) { voiceAuto = it; Prefs.setFlag(ctx, Prefs.VOICE_AUTOSAVE, it) }
+            }
+        }
+
+        item {
             Column {
                 SectionCaption("Деньги", Modifier.padding(bottom = 2.dp))
                 KvRow("Текущий баланс", rub(Stats.balance(ctx, all)), showSep = false, chevron = true, onClick = onBalance, labelColor = p.text)
