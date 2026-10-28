@@ -42,4 +42,32 @@ class BankParserTest {
     @Test fun codeSkipped() {
         assertNull(BankParser.parse("Код подтверждения 1234. Никому не сообщайте. Покупка 500 ₽"))
     }
+
+    private fun none(s: String) { assertNull("должно быть пропущено: $s", BankParser.parse(s)) }
+
+    @Test fun promoCashbackIsNotIncome() {
+        none("Вы можете получить кэшбэк 1000 ₽ за покупки по карте")
+        none("Т-Банк: кэшбэк до 1000 ₽ за покупки в октябре. Подключите предложение")
+        none("Получите 1000 ₽ кэшбэка за первую покупку")
+        none("Кэшбэк 1000 ₽ ждёт вас. Успейте активировать")
+        none("Вернём 1000 ₽ за покупки от 3000 ₽")
+        none("Кэшбэк 1000 ₽ будет начислен 5 ноября")
+        none("Предлагаем кэшбэк 1000 ₽ на любимые категории")
+        none("Кэшбэк 1000 ₽")
+        none("Бонус до 1000 ₽ за приглашённого друга")
+    }
+
+    @Test fun realCashbackIsIncome() {
+        val a = p("Вам начислен кэшбэк 150 ₽")
+        assertTrue(a.income); assertEquals(150L, a.amount); assertEquals("Кешбэк", a.category)
+        val b = p("Начислен кэшбэк за покупки 1 000 ₽. Доступно 20 000 ₽")
+        assertTrue(b.income); assertEquals(1000L, b.amount)
+        val c = p("Зачисление кешбэка 320 ₽")
+        assertTrue(c.income); assertEquals(320L, c.amount)
+    }
+
+    @Test fun dateWithDoIsNotPromo() {
+        val o = p("Покупка 700 ₽ Магнит. Баланс 5 000 ₽. Карта действует до 10/28")
+        assertEquals(700L, o.amount); assertFalse(o.income)
+    }
 }

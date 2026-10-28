@@ -5,6 +5,9 @@ import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
+import androidx.activity.compose.BackHandler
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -21,14 +24,28 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.border
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,13 +53,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
-import androidx.core.view.WindowCompat
 import java.io.File
 
 class MainActivity : ComponentActivity() {
@@ -51,18 +66,14 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Рисуем под системными панелями, но сами отступаем от часов, батареи и жестовой полосы.
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+        )
         openTab.value = tabFrom(intent)
         setContent {
             AppTheme {
-                val p = LocalPal.current
-                SideEffect {
-                    window.statusBarColor = p.bg.toArgb()
-                    window.navigationBarColor = p.bg.toArgb()
-                    WindowCompat.getInsetsController(window, window.decorView).apply {
-                        isAppearanceLightStatusBars = false
-                        isAppearanceLightNavigationBars = false
-                    }
-                }
                 AppShell(
                     version = version.value,
                     requestedTab = openTab.value,
@@ -126,12 +137,11 @@ fun buildCsv(list: List<Tx>): String {
 
 private data class NavItem(val label: String, val icon: Int)
 
-private val nav = listOf(
-    NavItem("Главная", R.drawable.ic_home),
-    NavItem("Обзор", R.drawable.ic_chart),
-    NavItem("История", R.drawable.ic_list),
-    NavItem("Автоучёт", R.drawable.ic_auto)
-)
+private val navLeft = listOf(NavItem("Главная", R.drawable.ic_home), NavItem("Обзор", R.drawable.ic_chart))
+private val navRight = listOf(NavItem("История", R.drawable.ic_list), NavItem("Ещё", R.drawable.ic_sliders))
+
+private const val BAR = 64
+private const val OVERHANG = 26
 
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
@@ -142,8 +152,12 @@ fun AppShell(version: Int, requestedTab: Int, onTabConsumed: () -> Unit, onVoice
     val pendingCount = remember(version) { Repo.pending(ctx).size }
 
     var tab by remember { mutableStateOf(0) }
+    var morePage by remember { mutableStateOf(0) } // 0 меню «Ещё», 1 экран автоучёта
     LaunchedEffect(requestedTab) {
-        if (requestedTab in 0..3) { tab = requestedTab; onTabConsumed() }
+        if (requestedTab in 0..4) {
+            if (requestedTab == 4) { tab = 3; morePage = 1 } else { tab = requestedTab; if (requestedTab == 3) morePage = 0 }
+            onTabConsumed()
+        }
     }
     var historyQuery by remember { mutableStateOf("") }
     var editing by remember { mutableStateOf<Tx?>(null) }
@@ -151,8 +165,9 @@ fun AppShell(version: Int, requestedTab: Int, onTabConsumed: () -> Unit, onVoice
     var personOpen by remember { mutableStateOf<String?>(null) }
     var balanceOpen by remember { mutableStateOf(false) }
     var budgetOpen by remember { mutableStateOf(false) }
-    var settingsOpen by remember { mutableStateOf(false) }
     var clearAsk by remember { mutableStateOf(false) }
+
+    BackHandler(enabled = tab != 0) { tab = 0 }
 
     val importer = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) {
@@ -167,98 +182,160 @@ fun AppShell(version: Int, requestedTab: Int, onTabConsumed: () -> Unit, onVoice
         }
     }
 
-    Box(
-        Modifier
-            .fillMaxSize()
-            .background(p.bg)
-    ) {
-        Column(Modifier.fillMaxSize()) {
-            Box(Modifier.weight(1f)) {
+    val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+
+    CompositionLocalProvider(LocalDockPad provides (BAR.dp + navBottom + 24.dp)) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(p.bg)
+        ) {
+            // Экран. Сверху отступ под часы и батарею, снизу его закрывает док.
+            Box(Modifier.fillMaxSize().statusBarsPadding()) {
                 AnimatedContent(
                     targetState = tab,
+                    modifier = Modifier.fillMaxSize(),
                     transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(160)) },
                     label = "tabs"
                 ) { t ->
                     when (t) {
                         0 -> HomeScreen(
                             all, pendingCount,
-                            onVoice = onVoice,
                             onManual = { manual = it },
                             onEdit = { editing = it },
-                            onSettings = { settingsOpen = true },
                             onBalance = { balanceOpen = true },
                             onBudget = { budgetOpen = true },
                             onPerson = { personOpen = it },
                             onHistory = { historyQuery = ""; tab = 2 },
-                            onAuto = { tab = 3 }
+                            onAuto = { morePage = 1; tab = 3 }
                         )
                         1 -> OverviewScreen(all, onCategory = { historyQuery = it; tab = 2 })
                         2 -> HistoryScreen(all, historyQuery, onEdit = { editing = it })
-                        else -> AutoScreen(all, version, onChanged = onChanged, onEdit = { editing = it })
+                        else -> MoreScreen(
+                            page = morePage, onPage = { morePage = it },
+                            all = all, version = version, pendingCount = pendingCount,
+                            onChanged = onChanged, onEdit = { editing = it },
+                            onBalance = { balanceOpen = true },
+                            onBudget = { budgetOpen = true },
+                            onCsv = {
+                                if (all.isEmpty()) Toast.makeText(ctx, "Пока нечего выгружать", Toast.LENGTH_SHORT).show()
+                                else shareFile(ctx, "dohod-rashod.csv", buildCsv(all), "text/csv", "Экспорт в Excel")
+                            },
+                            onBackup = { shareFile(ctx, "dohod-backup.json", Repo.exportJson(ctx), "application/json", "Сохранить копию") },
+                            onRestore = { importer.launch("*/*") },
+                            onClear = { clearAsk = true }
+                        )
                     }
                 }
             }
-            BottomNav(tab) { if (it == 2) historyQuery = ""; tab = it }
-        }
 
-        EditSheet(editing, onDismiss = { editing = null }, onChanged = onChanged)
-        ManualSheet(manual, onDismiss = { manual = null }, onChanged = onChanged)
-        PersonSheet(personOpen, all, onDismiss = { personOpen = null }, onEdit = { personOpen = null; editing = it })
-        BalanceSheet(balanceOpen, all, onDismiss = { balanceOpen = false }, onChanged = onChanged)
-        BudgetSheet(budgetOpen, onDismiss = { budgetOpen = false }, onChanged = onChanged)
-        SettingsSheet(
-            settingsOpen, all.size,
-            onDismiss = { settingsOpen = false },
-            onBalance = { balanceOpen = true },
-            onBudget = { budgetOpen = true },
-            onCsv = {
-                if (all.isEmpty()) Toast.makeText(ctx, "Пока нечего выгружать", Toast.LENGTH_SHORT).show()
-                else shareFile(ctx, "dohod-rashod.csv", buildCsv(all), "text/csv", "Экспорт в Excel")
-            },
-            onBackup = { shareFile(ctx, "dohod-backup.json", Repo.exportJson(ctx), "application/json", "Сохранить копию") },
-            onRestore = { importer.launch("*/*") },
-            onClear = { clearAsk = true }
-        )
-        ConfirmSheet(
-            visible = clearAsk,
-            title = "Удалить все записи?",
-            text = "Это действие нельзя отменить. Сначала сохраните резервную копию.",
-            action = "Удалить всё",
-            onDismiss = { clearAsk = false },
-            onConfirm = { Repo.clear(ctx); clearAsk = false; onChanged() }
-        )
+            Dock(
+                tab = tab, pending = pendingCount,
+                onSelect = {
+                    if (it == 2) historyQuery = ""
+                    if (it == 3 && tab == 3) morePage = 0
+                    tab = it
+                },
+                onVoice = onVoice,
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
+
+            EditSheet(editing, onDismiss = { editing = null }, onChanged = onChanged)
+            ManualSheet(manual, onDismiss = { manual = null }, onChanged = onChanged)
+            PersonSheet(personOpen, all, onDismiss = { personOpen = null }, onEdit = { personOpen = null; editing = it })
+            BalanceSheet(balanceOpen, all, onDismiss = { balanceOpen = false }, onChanged = onChanged)
+            BudgetSheet(budgetOpen, onDismiss = { budgetOpen = false }, onChanged = onChanged)
+            ConfirmSheet(
+                visible = clearAsk,
+                title = "Удалить все записи?",
+                text = "Это действие нельзя отменить. Сначала сохраните резервную копию.",
+                action = "Удалить всё",
+                onDismiss = { clearAsk = false },
+                onConfirm = { Repo.clear(ctx); clearAsk = false; onChanged() }
+            )
+        }
+    }
+}
+
+/**
+ * Нижняя панель в зоне большого пальца. Четыре раздела и крупный микрофон по центру:
+ * главное действие приложения (сказать вслух) всегда под рукой одной рукой.
+ */
+@Composable
+private fun Dock(tab: Int, pending: Int, onSelect: (Int) -> Unit, onVoice: () -> Unit, modifier: Modifier = Modifier) {
+    val p = LocalPal.current
+    val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    Column(modifier.fillMaxWidth()) {
+        Box(Modifier.fillMaxWidth().height((BAR + OVERHANG).dp)) {
+            Row(
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .height(BAR.dp)
+                    .background(p.bg)
+                    .drawBehind { drawRect(p.line, size = androidx.compose.ui.geometry.Size(size.width, 1.dp.toPx())) }
+            ) {
+                navLeft.forEachIndexed { i, item -> DockItem(item, tab == i, false, Modifier.weight(1f)) { onSelect(i) } }
+                Spacer(Modifier.weight(1.15f))
+                navRight.forEachIndexed { j, item -> DockItem(item, tab == j + 2, j == 1 && pending > 0, Modifier.weight(1f)) { onSelect(j + 2) } }
+            }
+            Text(
+                "Сказать", color = p.muted, fontSize = 12.sp,
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 7.dp)
+            )
+            // Круглая выемка в панели и сам ключ
+            Box(
+                Modifier
+                    .align(Alignment.TopCenter)
+                    .size(72.dp)
+                    .clip(CircleShape)
+                    .background(p.bg)
+                    .border(1.dp, p.line, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    Modifier
+                        .size(60.dp)
+                        .clip(CircleShape)
+                        .background(p.gold)
+                        .pressable(onVoice),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Canvas(Modifier.size(60.dp)) {
+                        drawCircle(
+                            p.onGold.copy(alpha = 0.28f),
+                            radius = size.minDimension / 2 - 5.dp.toPx(),
+                            center = Offset(size.width / 2, size.height / 2),
+                            style = Stroke(1.dp.toPx())
+                        )
+                    }
+                    Ic(R.drawable.ic_mic, p.onGold, 28.dp)
+                }
+            }
+        }
+        Spacer(Modifier.fillMaxWidth().height(navBottom).background(p.bg))
     }
 }
 
 @Composable
-private fun BottomNav(tab: Int, onSelect: (Int) -> Unit) {
+private fun DockItem(item: NavItem, active: Boolean, badge: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val p = LocalPal.current
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .background(p.bg)
-            .drawBehind { drawRect(p.sep, size = androidx.compose.ui.geometry.Size(size.width, 1.dp.toPx())) }
-            .padding(start = 8.dp, end = 8.dp, top = 6.dp, bottom = 10.dp),
-        horizontalArrangement = Arrangement.SpaceAround
+    Column(
+        modifier
+            .fillMaxHeight()
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
-        nav.forEachIndexed { i, item ->
-            val active = i == tab
-            Column(
-                Modifier
-                    .weight(1f)
-                    .heightIn(min = 48.dp)
-                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onSelect(i) },
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Ic(item.icon, if (active) p.text else p.muted, 22.dp)
-                Text(
-                    item.label, fontSize = 12.sp,
-                    color = if (active) p.text else p.muted,
-                    fontWeight = if (active) FontWeight.Medium else FontWeight.Normal,
-                    modifier = Modifier.padding(top = 3.dp)
-                )
-            }
+        Box {
+            Ic(item.icon, if (active) p.gold else p.muted, 24.dp)
+            if (badge) Box(Modifier.align(Alignment.TopEnd).offset(x = 4.dp, y = (-2).dp)) { Dot(p.gold, 8.dp) }
         }
+        Text(
+            item.label, fontSize = 12.sp,
+            color = if (active) p.text else p.muted,
+            fontWeight = if (active) FontWeight.Medium else FontWeight.Normal,
+            modifier = Modifier.padding(top = 3.dp)
+        )
     }
 }

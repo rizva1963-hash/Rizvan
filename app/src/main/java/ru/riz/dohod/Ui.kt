@@ -26,6 +26,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -253,23 +256,48 @@ fun UnderlineTabs(items: List<String>, selected: Int, onSelect: (Int) -> Unit, g
     }
 }
 
-/** Строка операции: слева название и категория, справа сумма и дата. */
+/** Отступ внизу списков: под док-панель с микрофоном и жестовую полосу. */
+val LocalDockPad = androidx.compose.runtime.staticCompositionLocalOf { 96.dp }
+
+/** Монограмма категории: ритм списка и быстрый взгляд на тип записи. */
 @Composable
-fun TxRow(t: Tx, showSep: Boolean = false, onClick: () -> Unit) {
+fun CategoryBadge(t: Tx) {
     val p = LocalPal.current
+    Box(
+        Modifier
+            .size(40.dp)
+            .clip(androidx.compose.foundation.shape.CircleShape)
+            .background(p.fill),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            t.category.firstOrNull()?.uppercase() ?: "•",
+            style = serif(18.sp, if (t.income) p.green else p.gold)
+        )
+    }
+}
+
+/** Строка операции: монограмма, название и категория слева, сумма и время справа. */
+@Composable
+fun TxRow(t: Tx, showSep: Boolean = false, showDate: Boolean = false, onClick: () -> Unit) {
+    val p = LocalPal.current
+    val bank = t.source == Source.SBER || t.source == Source.TBANK
     Row(
         Modifier
             .fillMaxWidth()
-            .then(if (showSep) Modifier.drawBehind { drawRect(p.sep, size = androidx.compose.ui.geometry.Size(size.width, 1.dp.toPx())) } else Modifier)
-            .heightIn(min = 64.dp)
+            .heightIn(min = 68.dp)
             .clickable(onClick = onClick)
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
+        CategoryBadge(t)
         Column(Modifier.weight(1f)) {
             Text(txTitle(t), color = p.text, fontSize = 16.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(t.category + " · " + Source.label(t.source), color = p.muted, fontSize = 13.sp, maxLines = 1)
+            Text(
+                if (bank) t.category + ", " + Source.label(t.source) else t.category,
+                color = p.muted, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis
+            )
         }
         Column(horizontalAlignment = Alignment.End) {
             Text(
@@ -277,8 +305,27 @@ fun TxRow(t: Tx, showSep: Boolean = false, onClick: () -> Unit) {
                 color = if (t.income) p.green else p.text,
                 style = TextStyle(fontFeatureSettings = TNUM)
             )
-            Text(Stats.shortDate(t.ts), color = p.muted, fontSize = 13.sp)
+            Text(if (showDate) Stats.shortDate(t.ts) else Stats.time(t.ts), color = p.muted, fontSize = 13.sp, style = TextStyle(fontFeatureSettings = TNUM))
         }
+    }
+}
+
+/** Один день: заголовок с итогом расходов и записи под ним. */
+@Composable
+fun DayBlock(day: String, txs: List<Tx>, onEdit: (Tx) -> Unit) {
+    val p = LocalPal.current
+    val spent = txs.filter { !it.income }.sumOf { it.amount }
+    Column(Modifier.fillMaxWidth().padding(top = 8.dp)) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .drawBehind { drawRect(p.sep, topLeft = Offset(0f, size.height - 1.dp.toPx()), size = androidx.compose.ui.geometry.Size(size.width, 1.dp.toPx())) }
+                .padding(bottom = 8.dp)
+        ) {
+            Text(day, color = p.text, fontSize = 14.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+            if (spent > 0) Text("−" + rub(spent), color = p.muted, fontSize = 14.sp, style = TextStyle(fontFeatureSettings = TNUM))
+        }
+        txs.forEach { t -> TxRow(t) { onEdit(t) } }
     }
 }
 
@@ -451,18 +498,20 @@ fun Sheet(visible: Boolean, onDismiss: () -> Unit, content: @Composable ColumnSc
         }
         AnimatedVisibility(
             visible,
-            modifier = Modifier.align(Alignment.BottomCenter),
+            modifier = Modifier.align(Alignment.BottomCenter).statusBarsPadding(),
             enter = slideInVertically(tween(420, easing = EaseOutExpo)) { it },
             exit = slideOutVertically(tween(240)) { it }
         ) {
             Column(
                 Modifier
                     .fillMaxWidth()
+                    .imePadding()
                     .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
                     .background(p.card)
                     .border(1.dp, p.line, RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { }
                     .verticalScroll(rememberScrollState())
+                    .navigationBarsPadding()
                     .padding(horizontal = 16.dp)
                     .padding(top = 8.dp, bottom = 24.dp)
             ) {

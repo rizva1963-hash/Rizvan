@@ -11,6 +11,8 @@ import android.speech.SpeechRecognizer
 import android.view.HapticFeedbackConstants
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.LinearEasing
@@ -31,6 +33,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -90,9 +94,23 @@ class VoiceActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+        )
         preset = intent?.getStringExtra("preset_category")
         setContent { AppTheme { VoiceScreen() } }
-        if (savedInstanceState == null) listen()
+        if (savedInstanceState == null) {
+            // Только для отладочной сборки: показать экран без микрофона (снимки экранов в CI).
+            val debuggable = (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
+            val demoText = if (debuggable) intent?.getStringExtra("demo_text") else null
+            val demoPartial = if (debuggable) intent?.getStringExtra("demo_partial") else null
+            when {
+                demoText != null -> onTexts(listOf(demoText))
+                demoPartial != null -> { partial = demoPartial; level = 0.7f; phase = Phase.LISTENING }
+                else -> listen()
+            }
+        }
     }
 
     override fun onDestroy() {
@@ -222,7 +240,9 @@ class VoiceActivity : ComponentActivity() {
             Column(
                 Modifier
                     .fillMaxSize()
-                    .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp)
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+                    .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp)
             ) {
                 // Верхняя строка
                 Row(Modifier.fillMaxWidth().heightIn(min = 44.dp), verticalAlignment = Alignment.CenterVertically) {

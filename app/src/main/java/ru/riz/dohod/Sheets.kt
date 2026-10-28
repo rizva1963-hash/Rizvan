@@ -259,7 +259,7 @@ fun SettingsSheet(
     }
 }
 
-private fun appVersion(ctx: android.content.Context): String = try {
+fun appVersion(ctx: android.content.Context): String = try {
     ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName ?: ""
 } catch (_: Exception) { "" }
 

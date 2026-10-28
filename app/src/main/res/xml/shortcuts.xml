@@ -5,7 +5,7 @@
     </shortcut>
     <shortcut android:enabled="true" android:icon="@drawable/ic_shortcut_mic" android:shortcutId="auto" android:shortcutShortLabel="@string/sc_auto">
         <intent android:action="android.intent.action.VIEW" android:targetClass="ru.riz.dohod.MainActivity" android:targetPackage="ru.riz.dohod">
-            <extra android:name="tab" android:value="3" />
+            <extra android:name="tab" android:value="4" />
         </intent>
     </shortcut>
 </shortcuts>

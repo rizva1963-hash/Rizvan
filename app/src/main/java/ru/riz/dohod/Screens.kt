@@ -5,11 +5,15 @@ import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -32,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
@@ -40,18 +45,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.util.Calendar
 
-private val pad = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 32.dp)
+@Composable
+private fun screenPad() = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = LocalDockPad.current)
 
 /* ═════════════════════════════ ГЛАВНАЯ ═════════════════════════════ */
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun HomeScreen(
     all: List<Tx>,
     pendingCount: Int,
-    onVoice: () -> Unit,
     onManual: (Boolean) -> Unit,
     onEdit: (Tx) -> Unit,
-    onSettings: () -> Unit,
     onBalance: () -> Unit,
     onBudget: () -> Unit,
     onPerson: (String) -> Unit,
@@ -70,38 +75,64 @@ fun HomeScreen(
     val inMonth = all.filter { it.ts in from until to }
     val balance = Stats.balance(ctx, all)
     val net = month.balance
+    val access = AutoAccounting.hasAccess(ctx)
 
     Box(Modifier.fillMaxSize()) {
-        LazyColumn(Modifier.fillMaxSize(), contentPadding = pad, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        LazyColumn(Modifier.fillMaxSize(), contentPadding = screenPad(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            // Шапка: месяц слева, состояние автоучёта справа. Настроек здесь нет, они в разделе «Ещё».
             item {
                 Row(
                     Modifier
                         .fillMaxWidth()
                         .rise(0)
-                        .heightIn(min = 44.dp),
+                        .heightIn(min = 52.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(
                         Modifier
-                            .weight(1f)
-                            .clickable(onClick = onBalance)
-                            .padding(vertical = 10.dp),
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable { monthOpen = true }
+                            .heightIn(min = 48.dp)
+                            .padding(end = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Основной счёт", color = p.text, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                        Text(Stats.monthNameOffset(monthOffset), style = serif(28.sp, p.text, (-0.4).sp))
                         Spacer(Modifier.width(8.dp))
                         Ic(R.drawable.ic_chevron_down, p.muted, 16.dp)
                     }
-                    IconBox(R.drawable.ic_sliders, onSettings)
+                    Spacer(Modifier.weight(1f))
+                    Row(
+                        Modifier
+                            .heightIn(min = 40.dp)
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(p.fill)
+                            .clickable(onClick = onAuto)
+                            .padding(horizontal = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Dot(if (access) p.green else p.muted, 7.dp)
+                        Spacer(Modifier.width(8.dp))
+                        Text(if (access) "Автоучёт" else "Автоучёт выключен", color = p.text, fontSize = 13.sp)
+                    }
                 }
             }
 
-            // Баланс
+            // Баланс, доход и расход одной панелью
             item {
-                CardBox(Modifier.rise(70)) {
-                    Text("Баланс на " + Stats.todayLong(), color = p.muted, fontSize = 14.sp)
-                    Spacer(Modifier.height(6.dp))
-                    BigAmount(balance, 46)
+                CardBox(Modifier.rise(70), padding = 20.dp) {
+                    Row(
+                        Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .clickable(onClick = onBalance)
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Баланс на " + Stats.todayLong(), color = p.muted, fontSize = 14.sp)
+                        Spacer(Modifier.width(4.dp))
+                        Ic(R.drawable.ic_chevron_right, p.muted, 14.dp)
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    BigAmount(balance, 52)
                     Spacer(Modifier.height(6.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Delta(net >= 0, if (net >= 0) p.green else p.red)
@@ -110,32 +141,40 @@ fun HomeScreen(
                             signed(net).removePrefix("+"), color = if (net >= 0) p.green else p.red, fontSize = 14.sp,
                             fontWeight = FontWeight.Medium, style = TextStyle(fontFeatureSettings = TNUM)
                         )
-                        Text(" " + Stats.monthIn(monthOffset).replace("в ", "за ").let { monthFor(monthOffset) }, color = p.muted, fontSize = 14.sp)
+                        Text(" " + monthFor(monthOffset), color = p.muted, fontSize = 14.sp)
+                    }
+                    Spacer(Modifier.height(18.dp))
+                    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Доход", color = p.muted, fontSize = 13.sp)
+                            Spacer(Modifier.height(2.dp))
+                            Text(rub(month.income), style = serif(22.sp, p.green))
+                        }
+                        Box(Modifier.width(1.dp).fillMaxHeight().background(p.line))
+                        Column(Modifier.weight(1f).padding(start = 18.dp)) {
+                            Text("Расход", color = p.muted, fontSize = 13.sp)
+                            Spacer(Modifier.height(2.dp))
+                            Text(rub(month.expense), style = serif(22.sp, p.text))
+                        }
                     }
                     if (month.expense > 0 || month.income > 0) {
-                        Spacer(Modifier.height(14.dp))
+                        Spacer(Modifier.height(16.dp))
                         val share = if (month.income > 0) month.expense.toFloat() / month.income else 1f
-                        Row {
-                            Text("Расход " + rub(month.expense), color = p.muted, fontSize = 13.sp, modifier = Modifier.weight(1f), style = TextStyle(fontFeatureSettings = TNUM))
-                            Text(
-                                if (month.income > 0) "${(share * 100).toInt()}% от дохода" else "доходов нет",
-                                color = p.muted, fontSize = 13.sp
-                            )
-                        }
-                        Spacer(Modifier.height(8.dp))
                         ProgressLine(share)
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            if (month.income > 0) "Потрачено ${(share * 100).toInt()}% от дохода" else "Доходов в этом месяце нет",
+                            color = p.muted, fontSize = 13.sp
+                        )
                     }
                 }
             }
 
-            // Кнопки
+            // Ручной ввод: два равных крупных пилюльных действия
             item {
-                Column(Modifier.rise(140), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    GoldButton("Сказать вслух", Modifier.fillMaxWidth(), icon = R.drawable.ic_mic, onClick = onVoice)
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        GhostButton("+ Доход", Modifier.weight(1f)) { onManual(true) }
-                        GhostButton("− Расход", Modifier.weight(1f)) { onManual(false) }
-                    }
+                Row(Modifier.rise(140), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    GhostButton("+ Доход", Modifier.weight(1f)) { onManual(true) }
+                    GhostButton("− Расход", Modifier.weight(1f)) { onManual(false) }
                 }
             }
 
@@ -144,7 +183,8 @@ fun HomeScreen(
                     Row(
                         Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
+                            .heightIn(min = 52.dp)
+                            .clip(RoundedCornerShape(10.dp))
                             .background(p.fill)
                             .clickable(onClick = onAuto)
                             .padding(horizontal = 14.dp, vertical = 12.dp),
@@ -158,46 +198,36 @@ fun HomeScreen(
                 }
             }
 
-            // Вкладки
-            item {
-                Row(
+            // Вкладки остаются под большим пальцем и под часами не прячутся: липнут к верху при прокрутке
+            stickyHeader {
+                Box(
                     Modifier
                         .fillMaxWidth()
-                        .drawBehind { drawRect(p.sep, topLeft = androidx.compose.ui.geometry.Offset(0f, size.height - 1.dp.toPx()), size = androidx.compose.ui.geometry.Size(size.width, 1.dp.toPx())) },
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(Modifier.weight(1f)) { UnderlineTabs(listOf("Операции", "Счета", "Цели"), tab, { tab = it }) }
-                    Row(
-                        Modifier
-                            .clickable { monthOpen = true }
-                            .padding(vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(Stats.monthNameOffset(monthOffset), color = p.muted, fontSize = 14.sp)
-                        Spacer(Modifier.width(4.dp))
-                        Ic(R.drawable.ic_chevron_down, p.muted, 14.dp)
-                    }
-                }
+                        .background(p.bg)
+                        .drawBehind { drawRect(p.sep, topLeft = androidx.compose.ui.geometry.Offset(0f, size.height - 1.dp.toPx()), size = androidx.compose.ui.geometry.Size(size.width, 1.dp.toPx())) }
+                ) { UnderlineTabs(listOf("Операции", "Счета", "Цели"), tab, { tab = it }) }
             }
 
             when (tab) {
                 0 -> {
                     if (inMonth.isEmpty()) {
                         item {
-                            EmptyNote("Записей пока нет.\nНажмите «Сказать вслух» и скажите, например, «кофе 500». Или включите автоучёт: операции Сбера и Т-Банка будут записываться сами.")
+                            EmptyNote("Записей пока нет.\nНажмите на микрофон внизу и скажите, например, «кофе 500». Или включите автоучёт: операции Сбера и Т-Банка будут записываться сами.")
                         }
                     } else {
-                        item {
-                            Column(Modifier.padding(top = 0.dp)) {
-                                inMonth.take(40).forEachIndexed { i, t -> TxRow(t, showSep = i > 0) { onEdit(t) } }
-                                if (inMonth.size > 40) {
-                                    Text(
-                                        "Вся история ›", color = p.gold, fontSize = 15.sp,
-                                        modifier = Modifier
-                                            .clickable(onClick = onHistory)
-                                            .padding(vertical = 14.dp)
-                                    )
-                                }
+                        val shown = inMonth.take(60)
+                        shown.groupBy { Stats.dayLabel(it.ts) }.forEach { (day, txs) ->
+                            item(key = "day_$day") { DayBlock(day, txs, onEdit) }
+                        }
+                        if (inMonth.size > shown.size) {
+                            item {
+                                Text(
+                                    "Вся история ›", color = p.gold, fontSize = 15.sp,
+                                    modifier = Modifier
+                                        .clickable(onClick = onHistory)
+                                        .heightIn(min = 48.dp)
+                                        .padding(vertical = 14.dp)
+                                )
                             }
                         }
                     }
@@ -372,7 +402,7 @@ fun OverviewScreen(all: List<Tx>, onCategory: (String) -> Unit) {
         .map { (k, v) -> k to v.sumOf { it.amount } }
         .sortedByDescending { it.second }
 
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = pad, verticalArrangement = Arrangement.spacedBy(14.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = screenPad(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item {
             Row(Modifier.fillMaxWidth().heightIn(min = 44.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.weight(1f)) { ScreenTitle("Обзор") }
@@ -497,7 +527,7 @@ fun HistoryScreen(all: List<Tx>, initialQuery: String, onEdit: (Tx) -> Unit) {
     }
     val groups = shown.groupBy { Stats.dayLabel(it.ts) }.toList()
 
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = pad, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = screenPad(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         item { Box(Modifier.heightIn(min = 44.dp), contentAlignment = Alignment.CenterStart) { ScreenTitle("История") } }
         item { Field(query, { query = it }, "Поиск: кафе, Сбер, Марат, 500", Modifier.fillMaxWidth(), leading = R.drawable.ic_search) }
         item { UnderlineTabs(listOf("Все", "Расходы", "Доходы"), filter, { filter = it }) }
@@ -509,16 +539,7 @@ fun HistoryScreen(all: List<Tx>, initialQuery: String, onEdit: (Tx) -> Unit) {
         }
         if (shown.isEmpty()) item { EmptyNote(if (all.isEmpty()) "Записей пока нет" else "Ничего не найдено") }
         groups.forEach { (day, txs) ->
-            item(key = "h_$day") {
-                Column(Modifier.padding(top = 10.dp)) {
-                    val s = Stats.summary(txs, 0)
-                    Row {
-                        Text(day, color = p.muted, fontSize = 13.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
-                        if (s.expense > 0) Text("−" + rub(s.expense), color = p.muted, fontSize = 13.sp, style = TextStyle(fontFeatureSettings = TNUM))
-                    }
-                    txs.forEachIndexed { i, t -> TxRow(t, showSep = i > 0) { onEdit(t) } }
-                }
-            }
+            item(key = "h_$day") { DayBlock(day, txs, onEdit) }
         }
     }
 }
@@ -526,7 +547,7 @@ fun HistoryScreen(all: List<Tx>, initialQuery: String, onEdit: (Tx) -> Unit) {
 /* ═════════════════════════════ АВТОУЧЁТ ═════════════════════════════ */
 
 @Composable
-fun AutoScreen(all: List<Tx>, version: Int, onChanged: () -> Unit, onEdit: (Tx) -> Unit) {
+fun AutoScreen(all: List<Tx>, version: Int, onChanged: () -> Unit, onEdit: (Tx) -> Unit, onBack: (() -> Unit)? = null) {
     val ctx = LocalContext.current
     val p = LocalPal.current
     val access = remember(version) { AutoAccounting.hasAccess(ctx) }
@@ -542,8 +563,26 @@ fun AutoScreen(all: List<Tx>, version: Int, onChanged: () -> Unit, onEdit: (Tx) 
     var sampleResult by remember { mutableStateOf<Tx?>(null) }
     var sampleTried by remember { mutableStateOf(false) }
 
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = pad, verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        item { Box(Modifier.heightIn(min = 44.dp), contentAlignment = Alignment.CenterStart) { ScreenTitle("Автоучёт") } }
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = screenPad(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        item {
+            Column {
+                if (onBack != null) {
+                    Row(
+                        Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable(onClick = onBack)
+                            .heightIn(min = 48.dp)
+                            .padding(end = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Ic(R.drawable.ic_chevron_right, p.muted, 16.dp, Modifier.graphicsLayer { rotationZ = 180f })
+                        Spacer(Modifier.width(6.dp))
+                        Text("Ещё", color = p.muted, fontSize = 16.sp)
+                    }
+                }
+                Box(Modifier.heightIn(min = 44.dp), contentAlignment = Alignment.CenterStart) { ScreenTitle("Автоучёт") }
+            }
+        }
 
         // Статус
         item {
@@ -734,6 +773,112 @@ fun AutoScreen(all: List<Tx>, version: Int, onChanged: () -> Unit, onEdit: (Tx) 
                     color = p.muted, fontSize = 13.sp, lineHeight = 18.sp
                 )
             }
+        }
+    }
+}
+
+/* ═════════════════════════════ ЕЩЁ ═════════════════════════════ */
+
+/** Раздел «Ещё»: настройки, данные и автоучёт. Живёт внизу экрана, где до него достаёт большой палец. */
+@Composable
+fun MoreScreen(
+    page: Int,
+    onPage: (Int) -> Unit,
+    all: List<Tx>,
+    version: Int,
+    pendingCount: Int,
+    onChanged: () -> Unit,
+    onEdit: (Tx) -> Unit,
+    onBalance: () -> Unit,
+    onBudget: () -> Unit,
+    onCsv: () -> Unit,
+    onBackup: () -> Unit,
+    onRestore: () -> Unit,
+    onClear: () -> Unit
+) {
+    if (page == 1) {
+        BackHandler { onPage(0) }
+        AutoScreen(all, version, onChanged, onEdit, onBack = { onPage(0) })
+        return
+    }
+    val ctx = LocalContext.current
+    val p = LocalPal.current
+    val access = AutoAccounting.hasAccess(ctx)
+    val on = Prefs.flag(ctx, Prefs.AUTO_ON, true)
+    val monthFrom = Stats.startOfMonth()
+    val autoCount = all.count { (it.source == Source.SBER || it.source == Source.TBANK) && it.ts >= monthFrom }
+
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = screenPad(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        item { Box(Modifier.heightIn(min = 52.dp), contentAlignment = Alignment.CenterStart) { ScreenTitle("Ещё") } }
+
+        item {
+            CardBox(
+                Modifier
+                    .rise(0)
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable { onPage(1) },
+                padding = 18.dp
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Dot(if (access && on) p.green else p.muted)
+                            Spacer(Modifier.width(10.dp))
+                            Text("Автоучёт банков", color = p.text, fontSize = 17.sp, fontWeight = FontWeight.Medium)
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            when {
+                                !access -> "Выключен. Нажмите, чтобы разрешить чтение уведомлений Сбера и Т-Банка."
+                                !on -> "На паузе"
+                                pendingCount > 0 -> "Ждут подтверждения: $pendingCount"
+                                else -> "Работает. Записано в этом месяце: $autoCount"
+                            },
+                            color = p.muted, fontSize = 14.sp, lineHeight = 20.sp
+                        )
+                    }
+                    Ic(R.drawable.ic_chevron_right, p.muted, 16.dp)
+                }
+            }
+        }
+
+        item {
+            Column {
+                SectionCaption("Деньги", Modifier.padding(bottom = 2.dp))
+                KvRow("Текущий баланс", rub(Stats.balance(ctx, all)), showSep = false, chevron = true, onClick = onBalance)
+                KvRow("Бюджет на месяц", Prefs.budget(ctx).let { if (it > 0) rub(it) else "не задан" }, chevron = true, onClick = onBudget)
+            }
+        }
+
+        item {
+            Column {
+                SectionCaption("Данные", Modifier.padding(bottom = 2.dp))
+                KvRow("Экспорт в Excel", "CSV", showSep = false, chevron = true, onClick = onCsv)
+                KvRow("Сохранить резервную копию", "", chevron = true, onClick = onBackup)
+                KvRow("Восстановить из копии", "", chevron = true, onClick = onRestore)
+                KvRow("Удалить все записи", "", valueColor = p.red, chevron = true, onClick = onClear)
+            }
+        }
+
+        item {
+            CardBox(padding = 18.dp) {
+                Text("Как говорить", color = p.muted, fontSize = 14.sp)
+                Spacer(Modifier.height(8.dp))
+                listOf(
+                    "кофе 500, такси 350, бензин 2000",
+                    "получил зарплату 600 тысяч",
+                    "даю зарплату Сулейману 50000",
+                    "дал в долг Марату 5000",
+                    "перевёл маме 30000"
+                ).forEach { Text("«$it»", style = serif(17.sp, p.text), modifier = Modifier.padding(vertical = 5.dp)) }
+            }
+        }
+
+        item {
+            Text(
+                "Записей: ${all.size}. Данные хранятся только на этом телефоне.\nДоход/Расход, версия " + appVersion(ctx),
+                color = p.muted, fontSize = 13.sp, lineHeight = 19.sp
+            )
         }
     }
 }
