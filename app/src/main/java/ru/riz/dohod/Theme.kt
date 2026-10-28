@@ -11,6 +11,7 @@ import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 
 /** Палитра «графит и шампань» из утверждённого макета. */
@@ -72,6 +73,10 @@ fun AppTheme(content: @Composable () -> Unit) {
     val p = GraphitePal
     CompositionLocalProvider(LocalPal provides p) {
         MaterialTheme(
+            typography = androidx.compose.material3.Typography(
+                // Плотный базовый стиль: без разрежения букв и с аккуратным межстрочным интервалом
+                bodyLarge = TextStyle(fontSize = 16.sp, lineHeight = 1.35.em, letterSpacing = 0.sp)
+            ),
             colorScheme = darkColorScheme(
                 primary = p.gold, onPrimary = p.onGold, background = p.bg, onBackground = p.text,
                 surface = p.card, onSurface = p.text, surfaceVariant = p.fill, onSurfaceVariant = p.muted,

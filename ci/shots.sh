@@ -25,7 +25,7 @@ tap() {
   if [ -n "$xy" ]; then adb shell input tap $xy; else echo "NOT FOUND: $1"; fi
 }
 
-adb shell am start -n $PKG/.MainActivity; sleep 5
+adb shell am start -n $PKG/.MainActivity; sleep 9
 shot home
 adb shell input swipe 540 1900 540 700 500; shot home_scrolled
 adb shell input swipe 540 700 540 1900 500
@@ -44,6 +44,7 @@ tap "− Расход"; shot sheet_manual
 adb shell input keyevent 4
 tap "Kofemaniya"; tap "Кофемания"; shot sheet_edit
 adb shell input keyevent 4
-adb shell am start -n $PKG/.VoiceActivity --es demo_text "кофе 500 рублей"; shot voice_result
-adb shell am start -n $PKG/.VoiceActivity --es demo_partial "такси триста пятьдесят"; shot voice_listen
+adb shell "am start -n $PKG/.VoiceActivity --es demo_text 'кофе 500 рублей'"; shot voice_result
+adb shell am force-stop $PKG
+adb shell "am start -n $PKG/.VoiceActivity --es demo_partial 'такси триста пятьдесят'"; shot voice_listen
 exit 0

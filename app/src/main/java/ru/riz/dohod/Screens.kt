@@ -160,8 +160,17 @@ fun HomeScreen(
                     if (month.expense > 0 || month.income > 0) {
                         Spacer(Modifier.height(16.dp))
                         val share = if (month.income > 0) month.expense.toFloat() / month.income else 1f
-                        ProgressLine(share)
-                        Spacer(Modifier.height(8.dp))
+                        val cal = Calendar.getInstance().apply { timeInMillis = from }
+                        val days = cal.getActualMaximum(Calendar.DAY_OF_MONTH)
+                        val daily = LongArray(days).also { arr ->
+                            inMonth.filter { !it.income }.forEach { t ->
+                                val d = Calendar.getInstance().apply { timeInMillis = t.ts }.get(Calendar.DAY_OF_MONTH) - 1
+                                if (d in 0 until days) arr[d] += t.amount
+                            }
+                        }.toList()
+                        val hi = if (monthOffset == 0) Stats.dayOfMonth() - 1 else daily.indices.maxByOrNull { daily[it] } ?: -1
+                        MonthRhythm(daily, hi)
+                        Spacer(Modifier.height(10.dp))
                         Text(
                             if (month.income > 0) "Потрачено ${(share * 100).toInt()}% от дохода" else "Доходов в этом месяце нет",
                             color = p.muted, fontSize = 13.sp
@@ -845,18 +854,18 @@ fun MoreScreen(
         item {
             Column {
                 SectionCaption("Деньги", Modifier.padding(bottom = 2.dp))
-                KvRow("Текущий баланс", rub(Stats.balance(ctx, all)), showSep = false, chevron = true, onClick = onBalance)
-                KvRow("Бюджет на месяц", Prefs.budget(ctx).let { if (it > 0) rub(it) else "не задан" }, chevron = true, onClick = onBudget)
+                KvRow("Текущий баланс", rub(Stats.balance(ctx, all)), showSep = false, chevron = true, onClick = onBalance, labelColor = p.text)
+                KvRow("Бюджет на месяц", Prefs.budget(ctx).let { if (it > 0) rub(it) else "не задан" }, chevron = true, onClick = onBudget, labelColor = p.text)
             }
         }
 
         item {
             Column {
                 SectionCaption("Данные", Modifier.padding(bottom = 2.dp))
-                KvRow("Экспорт в Excel", "CSV", showSep = false, chevron = true, onClick = onCsv)
-                KvRow("Сохранить резервную копию", "", chevron = true, onClick = onBackup)
-                KvRow("Восстановить из копии", "", chevron = true, onClick = onRestore)
-                KvRow("Удалить все записи", "", valueColor = p.red, chevron = true, onClick = onClear)
+                KvRow("Экспорт в Excel", "CSV", showSep = false, chevron = true, onClick = onCsv, labelColor = p.text)
+                KvRow("Сохранить резервную копию", "", chevron = true, onClick = onBackup, labelColor = p.text)
+                KvRow("Восстановить из копии", "", chevron = true, onClick = onRestore, labelColor = p.text)
+                KvRow("Удалить все записи", "", chevron = true, onClick = onClear, labelColor = p.red)
             }
         }
 

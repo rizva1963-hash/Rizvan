@@ -75,8 +75,16 @@ val EasePress = CubicBezierEasing(0.2f, 0f, 0f, 1f)
 /** Появление снизу с задержкой (как .in1/.in2/.in3 в макете). */
 @Composable
 fun Modifier.rise(delayMs: Int = 0): Modifier {
-    val a = remember { Animatable(0f) }
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    // Если у человека отключены анимации, показываем сразу: иначе блок мог бы остаться невидимым
+    val off = remember {
+        try {
+            android.provider.Settings.Global.getFloat(ctx.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
+        } catch (_: Exception) { false }
+    }
+    val a = remember { Animatable(if (off) 1f else 0f) }
     LaunchedEffect(Unit) {
+        if (off) return@LaunchedEffect
         kotlinx.coroutines.delay(delayMs.toLong())
         a.animateTo(1f, tween(600, easing = EaseOutExpo))
     }
@@ -429,7 +437,7 @@ fun ToggleRow(title: String, subtitle: String? = null, checked: Boolean, showSep
 
 /** Строка «подпись — значение ›» для карточек и настроек. */
 @Composable
-fun KvRow(label: String, value: String, showSep: Boolean = true, valueColor: Color? = null, chevron: Boolean = false, onClick: (() -> Unit)? = null) {
+fun KvRow(label: String, value: String, showSep: Boolean = true, valueColor: Color? = null, chevron: Boolean = false, onClick: (() -> Unit)? = null, labelColor: Color? = null) {
     val p = LocalPal.current
     Row(
         Modifier
@@ -440,7 +448,7 @@ fun KvRow(label: String, value: String, showSep: Boolean = true, valueColor: Col
             .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(label, color = p.muted, fontSize = 14.sp, modifier = Modifier.weight(1f))
+        Text(label, color = labelColor ?: p.muted, fontSize = if (labelColor != null) 16.sp else 14.sp, modifier = Modifier.weight(1f))
         Text(value, color = valueColor ?: p.text, fontSize = 16.sp, fontWeight = FontWeight.Medium, style = TextStyle(fontFeatureSettings = TNUM))
         if (chevron) {
             Spacer(Modifier.width(6.dp))
@@ -682,3 +690,36 @@ fun IconBox(res: Int, onClick: () -> Unit) {
 
 @Suppress("unused")
 private val keepWidthIn = Modifier.widthIn(min = 0.dp)
+
+/**
+ * «Ритм месяца»: по тонкой полоске на каждый день, высота показывает расход за день.
+ * Сегодняшний день (или самый дорогой, если месяц прошёл) подсвечен шампанью.
+ */
+@Composable
+fun MonthRhythm(daily: List<Long>, highlight: Int, modifier: Modifier = Modifier) {
+    val p = LocalPal.current
+    val grow = remember { Animatable(0f) }
+    LaunchedEffect(daily) { grow.animateTo(1f, tween(900, easing = EaseOutExpo)) }
+    val peak = (daily.maxOrNull() ?: 0L).coerceAtLeast(1L)
+    Canvas(modifier.fillMaxWidth().height(40.dp)) {
+        val n = daily.size
+        if (n == 0) return@Canvas
+        val gap = 3.dp.toPx()
+        val bw = (size.width - gap * (n - 1)) / n
+        for (i in 0 until n) {
+            val v = daily[i]
+            val h = if (v <= 0L) 3.dp.toPx() else (size.height * (0.14f + 0.86f * v / peak)) * grow.value.coerceAtLeast(0.05f)
+            val col = when {
+                i == highlight -> p.gold
+                v > 0L -> p.bar
+                else -> p.line
+            }
+            drawRoundRect(
+                color = col,
+                topLeft = Offset(i * (bw + gap), size.height - h),
+                size = androidx.compose.ui.geometry.Size(bw, h),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(bw / 2, bw / 2)
+            )
+        }
+    }
+}
