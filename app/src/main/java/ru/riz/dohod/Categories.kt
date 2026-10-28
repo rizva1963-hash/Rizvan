@@ -1,6 +1,69 @@
 package ru.riz.dohod
 
+import android.content.Context
+import org.json.JSONArray
+import org.json.JSONObject
+
+/** Своя категория пользователя: название, тип и слова, по которым она узнаётся в голосе и в банковских текстах. */
+data class CustomCat(val name: String, val income: Boolean, val keywords: List<String>)
+
 object Categories {
+
+    private var custom: List<CustomCat> = emptyList()
+
+    fun load(ctx: Context) {
+        custom = try {
+            val a = JSONArray(Prefs.str(ctx, "custom_cats", "[]"))
+            (0 until a.length()).map {
+                val o = a.getJSONObject(it)
+                CustomCat(
+                    o.getString("name"), o.optBoolean("income"),
+                    o.optJSONArray("kw")?.let { k -> (0 until k.length()).map { i -> k.getString(i) } } ?: emptyList()
+                )
+            }
+        } catch (e: Exception) { emptyList() }
+    }
+
+    private fun save(ctx: Context) {
+        val a = JSONArray()
+        custom.forEach { c ->
+            a.put(JSONObject().put("name", c.name).put("income", c.income).put("kw", JSONArray(c.keywords)))
+        }
+        Prefs.setStr(ctx, "custom_cats", a.toString())
+    }
+
+    fun customList(): List<CustomCat> = custom
+
+    /** false, если такое имя уже есть среди встроенных или своих. */
+    fun addCustom(ctx: Context, name: String, income: Boolean, keywords: List<String>): Boolean {
+        val n = name.trim().replaceFirstChar { it.uppercase() }
+        if (n.isBlank() || allNames().any { it.equals(n, ignoreCase = true) }) return false
+        custom = custom + CustomCat(n, income, keywords.map { it.trim().lowercase() }.filter { it.length >= 3 })
+        save(ctx)
+        return true
+    }
+
+    fun removeCustom(ctx: Context, name: String) {
+        custom = custom.filter { it.name != name }
+        save(ctx)
+    }
+
+    private fun allNames() = baseExpense + baseIncome + custom.map { it.name }
+
+    private fun stem(w: String): String {
+        val x = w.trim().lowercase()
+        return if (x.length >= 6) x.dropLast(2) else if (x.length >= 4) x.dropLast(1) else x
+    }
+
+    private fun customMatch(tokens: List<String>, income: Boolean): String? {
+        for (c in custom) {
+            if (c.income != income) continue
+            val stems = (listOf(c.name) + c.keywords).map { stem(it) }.filter { it.length >= 3 }
+            if (tokens.any { w -> stems.any { w.startsWith(it) } }) return c.name
+        }
+        return null
+    }
+
 
     // Порядок важен: первая совпавшая категория выигрывает
     private val expense: List<Pair<String, List<String>>> = listOf(
@@ -43,8 +106,11 @@ object Categories {
         "Возврат" to "↩️", "Наличные" to "💵", "Бизнес" to "🏢"
     )
 
-    val expenseNames: List<String> = expense.map { it.first } + listOf("Люди", "Сотрудникам", "Наличные", "Долги", "Прочее")
-    val incomeNames: List<String> = listOf("Зарплата", "Перевод", "Подарок", "Продажа", "Возврат", "Кешбэк", "Долги", "Доход")
+    private val baseExpense: List<String> = expense.map { it.first } + listOf("Люди", "Сотрудникам", "Наличные", "Долги", "Прочее")
+    private val baseIncome: List<String> = listOf("Зарплата", "Перевод", "Подарок", "Продажа", "Возврат", "Кешбэк", "Долги", "Доход")
+
+    val expenseNames: List<String> get() = baseExpense.dropLast(1) + custom.filter { !it.income }.map { it.name } + "Прочее"
+    val incomeNames: List<String> get() = baseIncome.dropLast(1) + custom.filter { it.income }.map { it.name } + "Доход"
 
     /** Цвет категории (ARGB) — для диаграммы и значков */
     fun color(category: String): Long = when (category) {
@@ -73,6 +139,7 @@ object Categories {
     fun emoji(category: String): String = emoji[category] ?: "📦"
 
     fun expenseCategory(tokens: List<String>): String {
+        customMatch(tokens, false)?.let { return it }
         for ((name, stems) in expense) {
             if (tokens.any { w -> stems.any { w.startsWith(it) } }) return name
         }
@@ -80,6 +147,7 @@ object Categories {
     }
 
     fun incomeCategory(tokens: List<String>): String {
+        customMatch(tokens, true)?.let { return it }
         fun has(vararg s: String) = tokens.any { w -> s.any { w.startsWith(it) } }
         return when {
             has("зарплат", "зп", "аванс", "преми", "гонорар") -> "Зарплата"

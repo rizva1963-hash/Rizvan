@@ -166,6 +166,7 @@ fun AppShell(version: Int, requestedTab: Int, onTabConsumed: () -> Unit, onVoice
     var balanceOpen by remember { mutableStateOf(false) }
     var budgetOpen by remember { mutableStateOf(false) }
     var clearAsk by remember { mutableStateOf(false) }
+    var catsOpen by remember { mutableStateOf(false) }
 
     BackHandler(enabled = tab != 0) { tab = 0 }
 
@@ -189,6 +190,15 @@ fun AppShell(version: Int, requestedTab: Int, onTabConsumed: () -> Unit, onVoice
             Modifier
                 .fillMaxSize()
                 .background(p.bg)
+                .drawBehind {
+                    if (p.skin == Skin.LEDGER) {
+                        var y = 32.dp.toPx()
+                        while (y < size.height) {
+                            drawRect(p.line.copy(alpha = 0.35f), Offset(0f, y), androidx.compose.ui.geometry.Size(size.width, 1.dp.toPx()))
+                            y += 32.dp.toPx()
+                        }
+                    }
+                }
         ) {
             // Экран. Сверху отступ под часы и батарею, снизу его закрывает док.
             Box(Modifier.fillMaxSize().statusBarsPadding()) {
@@ -217,6 +227,7 @@ fun AppShell(version: Int, requestedTab: Int, onTabConsumed: () -> Unit, onVoice
                             onChanged = onChanged, onEdit = { editing = it },
                             onBalance = { balanceOpen = true },
                             onBudget = { budgetOpen = true },
+                            onCats = { catsOpen = true },
                             onCsv = {
                                 if (all.isEmpty()) Toast.makeText(ctx, "Пока нечего выгружать", Toast.LENGTH_SHORT).show()
                                 else shareFile(ctx, "dohod-rashod.csv", buildCsv(all), "text/csv", "Экспорт в Excel")
@@ -245,6 +256,7 @@ fun AppShell(version: Int, requestedTab: Int, onTabConsumed: () -> Unit, onVoice
             PersonSheet(personOpen, all, onDismiss = { personOpen = null }, onEdit = { personOpen = null; editing = it })
             BalanceSheet(balanceOpen, all, onDismiss = { balanceOpen = false }, onChanged = onChanged)
             BudgetSheet(budgetOpen, onDismiss = { budgetOpen = false }, onChanged = onChanged)
+            CategoriesSheet(catsOpen, onDismiss = { catsOpen = false })
             ConfirmSheet(
                 visible = clearAsk,
                 title = "Удалить все записи?",
@@ -273,45 +285,19 @@ private fun Dock(tab: Int, pending: Int, onSelect: (Int) -> Unit, onVoice: () ->
                     .fillMaxWidth()
                     .height(BAR.dp)
                     .background(p.bg)
-                    .drawBehind { drawRect(p.line, size = androidx.compose.ui.geometry.Size(size.width, 1.dp.toPx())) }
+                    .drawBehind {
+                        if (p.skin == Skin.LEDGER) {
+                            drawRect(p.text, size = androidx.compose.ui.geometry.Size(size.width, 1.5.dp.toPx()))
+                            drawRect(p.text, topLeft = Offset(0f, 4.dp.toPx()), size = androidx.compose.ui.geometry.Size(size.width, 0.8.dp.toPx()))
+                        } else drawRect(p.line, size = androidx.compose.ui.geometry.Size(size.width, 1.dp.toPx()))
+                    }
             ) {
                 navLeft.forEachIndexed { i, item -> DockItem(item, tab == i, false, Modifier.weight(1f)) { onSelect(i) } }
                 Spacer(Modifier.weight(1.15f))
                 navRight.forEachIndexed { j, item -> DockItem(item, tab == j + 2, j == 1 && pending > 0, Modifier.weight(1f)) { onSelect(j + 2) } }
             }
-            Text(
-                "Сказать", color = p.muted, fontSize = 12.sp,
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 7.dp)
-            )
-            // Круглая выемка в панели и сам ключ
-            Box(
-                Modifier
-                    .align(Alignment.TopCenter)
-                    .size(72.dp)
-                    .clip(CircleShape)
-                    .background(p.bg)
-                    .border(1.dp, p.line, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    Modifier
-                        .size(60.dp)
-                        .clip(CircleShape)
-                        .background(p.gold)
-                        .pressable(onVoice),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Canvas(Modifier.size(60.dp)) {
-                        drawCircle(
-                            p.onGold.copy(alpha = 0.28f),
-                            radius = size.minDimension / 2 - 5.dp.toPx(),
-                            center = Offset(size.width / 2, size.height / 2),
-                            style = Stroke(1.dp.toPx())
-                        )
-                    }
-                    Ic(R.drawable.ic_mic, p.onGold, 28.dp)
-                }
-            }
+            // Ключ: заводная головка или печать, зависит от скина
+            DockMic(p, Modifier.align(Alignment.TopCenter).pressable(onVoice))
         }
         Spacer(Modifier.fillMaxWidth().height(navBottom).background(p.bg))
     }

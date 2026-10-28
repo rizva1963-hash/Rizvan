@@ -275,7 +275,8 @@ fun CategoryBadge(t: Tx) {
         Modifier
             .size(40.dp)
             .clip(androidx.compose.foundation.shape.CircleShape)
-            .background(p.fill),
+            .background(if (p.skin == Skin.DIAL) Color.Transparent else p.fill)
+            .border(1.dp, if (p.skin == Skin.DIAL) p.line else Color.Transparent, androidx.compose.foundation.shape.CircleShape),
         contentAlignment = Alignment.Center
     ) {
         Text(
@@ -290,6 +291,30 @@ fun CategoryBadge(t: Tx) {
 fun TxRow(t: Tx, showSep: Boolean = false, showDate: Boolean = false, onClick: () -> Unit) {
     val p = LocalPal.current
     val bank = t.source == Source.SBER || t.source == Source.TBANK
+    if (p.skin == Skin.LEDGER) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .heightIn(min = 56.dp)
+                .clickable(onClick = onClick)
+                .padding(vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(2f, fill = false)) {
+                Text(txTitle(t), style = lora(17.sp, p.text), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    if (bank) t.category + ", " + Source.label(t.source) else t.category,
+                    color = p.muted, fontSize = 12.5.sp, maxLines = 1, overflow = TextOverflow.Ellipsis
+                )
+            }
+            Leader(Modifier.weight(1f).widthIn(min = 14.dp).padding(horizontal = 8.dp).padding(top = 2.dp))
+            Column(horizontalAlignment = Alignment.End) {
+                Text(signedRub(t), style = lora(17.sp, if (t.income) p.green else p.text), maxLines = 1, softWrap = false)
+                Text(if (showDate) Stats.shortDate(t.ts) else Stats.time(t.ts), color = p.muted, fontSize = 12.5.sp, style = TextStyle(fontFeatureSettings = TNUM))
+            }
+        }
+        return
+    }
     Row(
         Modifier
             .fillMaxWidth()
@@ -330,7 +355,8 @@ fun DayBlock(day: String, txs: List<Tx>, onEdit: (Tx) -> Unit) {
                 .drawBehind { drawRect(p.sep, topLeft = Offset(0f, size.height - 1.dp.toPx()), size = androidx.compose.ui.geometry.Size(size.width, 1.dp.toPx())) }
                 .padding(bottom = 8.dp)
         ) {
-            Text(day, color = p.text, fontSize = 14.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+            if (p.skin == Skin.LEDGER) Text(day, style = lora(16.sp, p.text), modifier = Modifier.weight(1f))
+            else Text(day, color = p.text, fontSize = 14.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
             if (spent > 0) Text("−" + rub(spent), color = p.muted, fontSize = 14.sp, style = TextStyle(fontFeatureSettings = TNUM))
         }
         txs.forEach { t -> TxRow(t) { onEdit(t) } }

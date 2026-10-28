@@ -117,65 +117,28 @@ fun HomeScreen(
                 }
             }
 
-            // Баланс, доход и расход одной панелью
+            // Баланс, доход и расход: у каждого скина свой главный элемент
             item {
-                CardBox(Modifier.rise(70), padding = 20.dp) {
-                    Row(
-                        Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .clickable(onClick = onBalance)
-                            .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Баланс на " + Stats.todayLong(), color = p.muted, fontSize = 14.sp)
-                        Spacer(Modifier.width(4.dp))
-                        Ic(R.drawable.ic_chevron_right, p.muted, 14.dp)
+                val cal = Calendar.getInstance().apply { timeInMillis = from }
+                val days = cal.getActualMaximum(Calendar.DAY_OF_MONTH)
+                val daily = LongArray(days).also { arr ->
+                    inMonth.filter { !it.income }.forEach { t ->
+                        val d = Calendar.getInstance().apply { timeInMillis = t.ts }.get(Calendar.DAY_OF_MONTH) - 1
+                        if (d in 0 until days) arr[d] += t.amount
                     }
-                    Spacer(Modifier.height(4.dp))
-                    BigAmount(balance, 52)
-                    Spacer(Modifier.height(6.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Delta(net >= 0, if (net >= 0) p.green else p.red)
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            signed(net).removePrefix("+"), color = if (net >= 0) p.green else p.red, fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium, style = TextStyle(fontFeatureSettings = TNUM)
-                        )
-                        Text(" " + monthFor(monthOffset), color = p.muted, fontSize = 14.sp)
-                    }
-                    Spacer(Modifier.height(18.dp))
-                    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
-                        Column(Modifier.weight(1f)) {
-                            Text("Доход", color = p.muted, fontSize = 13.sp)
-                            Spacer(Modifier.height(2.dp))
-                            Text(rub(month.income), style = serif(22.sp, p.green))
-                        }
-                        Box(Modifier.width(1.dp).fillMaxHeight().background(p.line))
-                        Column(Modifier.weight(1f).padding(start = 18.dp)) {
-                            Text("Расход", color = p.muted, fontSize = 13.sp)
-                            Spacer(Modifier.height(2.dp))
-                            Text(rub(month.expense), style = serif(22.sp, p.text))
-                        }
-                    }
-                    if (month.expense > 0 || month.income > 0) {
-                        Spacer(Modifier.height(16.dp))
-                        val share = if (month.income > 0) month.expense.toFloat() / month.income else 1f
-                        val cal = Calendar.getInstance().apply { timeInMillis = from }
-                        val days = cal.getActualMaximum(Calendar.DAY_OF_MONTH)
-                        val daily = LongArray(days).also { arr ->
-                            inMonth.filter { !it.income }.forEach { t ->
-                                val d = Calendar.getInstance().apply { timeInMillis = t.ts }.get(Calendar.DAY_OF_MONTH) - 1
-                                if (d in 0 until days) arr[d] += t.amount
-                            }
-                        }.toList()
-                        val hi = if (monthOffset == 0) Stats.dayOfMonth() - 1 else daily.indices.maxByOrNull { daily[it] } ?: -1
-                        MonthRhythm(daily, hi)
-                        Spacer(Modifier.height(10.dp))
-                        Text(
-                            if (month.income > 0) "Потрачено ${(share * 100).toInt()}% от дохода" else "Доходов в этом месяце нет",
-                            color = p.muted, fontSize = 13.sp
-                        )
-                    }
+                }.toList()
+                val todayIdx = if (monthOffset == 0) Stats.dayOfMonth() - 1 else -1
+                when (p.skin) {
+                    Skin.DIAL -> DialHero(
+                        balance = balance, income = month.income, expense = month.expense,
+                        budget = Prefs.budget(ctx), net = net, daily = daily, today = todayIdx,
+                        monthName = Stats.monthNameOffset(monthOffset).lowercase(), dateChip = dialDateChip(monthOffset),
+                        onBalance = onBalance, modifier = Modifier.rise(70)
+                    )
+                    Skin.LEDGER -> LedgerHero(
+                        balance = balance, income = month.income, expense = month.expense, net = net,
+                        daily = daily, today = todayIdx, onBalance = onBalance, modifier = Modifier.rise(70)
+                    )
                 }
             }
 
@@ -800,6 +763,7 @@ fun MoreScreen(
     onEdit: (Tx) -> Unit,
     onBalance: () -> Unit,
     onBudget: () -> Unit,
+    onCats: () -> Unit,
     onCsv: () -> Unit,
     onBackup: () -> Unit,
     onRestore: () -> Unit,
@@ -819,6 +783,8 @@ fun MoreScreen(
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = screenPad(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         item { Box(Modifier.heightIn(min = 52.dp), contentAlignment = Alignment.CenterStart) { ScreenTitle("Ещё") } }
+
+        item { SkinPicker() }
 
         item {
             CardBox(
@@ -866,6 +832,7 @@ fun MoreScreen(
                 SectionCaption("Деньги", Modifier.padding(bottom = 2.dp))
                 KvRow("Текущий баланс", rub(Stats.balance(ctx, all)), showSep = false, chevron = true, onClick = onBalance, labelColor = p.text)
                 KvRow("Бюджет на месяц", Prefs.budget(ctx).let { if (it > 0) rub(it) else "не задан" }, chevron = true, onClick = onBudget, labelColor = p.text)
+                KvRow("Свои категории", Categories.customList().size.let { if (it > 0) "$it" else "добавить" }, chevron = true, onClick = onCats, labelColor = p.text)
             }
         }
 

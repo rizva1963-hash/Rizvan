@@ -208,6 +208,9 @@ object Prefs {
     fun startBalance(ctx: Context): Long = p(ctx).getLong("start_balance", 0L)
     fun setStartBalance(ctx: Context, v: Long) = p(ctx).edit().putLong("start_balance", v).apply()
 
+    fun str(ctx: Context, key: String, def: String): String = p(ctx).getString(key, def) ?: def
+    fun setStr(ctx: Context, key: String, v: String) = p(ctx).edit().putString(key, v).apply()
+
     fun flag(ctx: Context, key: String, def: Boolean): Boolean = p(ctx).getBoolean(key, def)
     fun setFlag(ctx: Context, key: String, v: Boolean) = p(ctx).edit().putBoolean(key, v).apply()
 

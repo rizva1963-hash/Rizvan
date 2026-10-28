@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -308,6 +309,66 @@ fun ConfirmSheet(visible: Boolean, title: String, text: String, action: String, 
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             GhostButton(action, Modifier.fillMaxWidth(), color = p.red, onClick = onConfirm)
             GoldButton("Отмена", Modifier.fillMaxWidth(), onClick = onDismiss)
+        }
+    }
+}
+
+
+/* ───────── Свои категории ───────── */
+
+@Composable
+fun CategoriesSheet(visible: Boolean, onDismiss: () -> Unit) {
+    val ctx = LocalContext.current
+    val p = LocalPal.current
+    Sheet(visible = visible, onDismiss = onDismiss) {
+        var rev by remember { mutableStateOf(0) }
+        var name by remember(visible) { mutableStateOf("") }
+        var income by remember(visible) { mutableStateOf(false) }
+        var kw by remember(visible) { mutableStateOf("") }
+        var err by remember(visible) { mutableStateOf<String?>(null) }
+        SheetHeader("Свои категории", "Закрыть", null, onLeft = onDismiss)
+        val list = remember(rev, visible) { Categories.customList() }
+        if (list.isEmpty()) {
+            Text("Своих категорий пока нет. Добавьте, например, «Рыбалка», «Машина» или «Мечеть».", color = p.muted, fontSize = 14.sp, lineHeight = 20.sp)
+        } else {
+            list.forEachIndexed { i, c ->
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .then(if (i > 0) Modifier.drawBehind { drawRect(p.sep, size = androidx.compose.ui.geometry.Size(size.width, 1.dp.toPx())) } else Modifier)
+                        .heightIn(min = 54.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(c.name, color = p.text, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                        Text(
+                            (if (c.income) "Доход" else "Расход") + if (c.keywords.isNotEmpty()) ", слова: " + c.keywords.joinToString(", ") else "",
+                            color = p.muted, fontSize = 13.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
+                    }
+                    Text(
+                        "Удалить", color = p.red, fontSize = 14.sp,
+                        modifier = Modifier.clickable { Categories.removeCustom(ctx, c.name); rev++ }.heightIn(min = 48.dp).padding(start = 12.dp).wrapContentHeight()
+                    )
+                }
+            }
+        }
+        Spacer(Modifier.height(18.dp))
+        SectionCaption("Новая категория", Modifier.padding(bottom = 8.dp))
+        Field(name, { name = it; err = null }, "Название, например, Рыбалка", Modifier.fillMaxWidth())
+        Spacer(Modifier.height(10.dp))
+        ChipGrid(listOf("Расход", "Доход"), if (income) "Доход" else "Расход") { income = it == "Доход" }
+        Spacer(Modifier.height(10.dp))
+        Field(kw, { kw = it }, "Слова через запятую (необязательно)", Modifier.fillMaxWidth())
+        Spacer(Modifier.height(8.dp))
+        Text(
+            err ?: "Название узнаётся само: скажите «рыбалка 3000» и запись попадёт сюда. Дополнительные слова помогают узнавать её и в банковских уведомлениях.",
+            color = if (err != null) p.red else p.muted, fontSize = 13.sp, lineHeight = 18.sp
+        )
+        Spacer(Modifier.height(14.dp))
+        GoldButton("Добавить", Modifier.fillMaxWidth(), enabled = name.isNotBlank()) {
+            val ok = Categories.addCustom(ctx, name, income, kw.split(',', ';', '\n'))
+            if (ok) { name = ""; kw = ""; rev++ } else err = "Такая категория уже есть"
         }
     }
 }
