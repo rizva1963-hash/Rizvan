@@ -1,0 +1,11 @@
+    Перевод 5000р Марат С.  =>  BankOp(amount=5000, income=false, category=Люди, title=Марат С, person=Марат С, balance=null)
+    Перевод от Ивана И. 5 000 ₽  =>  BankOp(amount=5000, income=true, category=Перевод, title=Иван И., person=Иван И., balance=null)
+    500 ₽, Пятёрочка. Доступно 12 345,67 ₽  =>  BankOp(amount=500, income=false, category=Продукты, title=Пятёрочка, person=, balance=12346)
+    Зачисление зарплаты 80 000 ₽  =>  BankOp(amount=80000, income=true, category=Зарплата, title=Зарплата, person=, balance=null)
+    Вам начислен кэшбэк 150 ₽  =>  BankOp(amount=150, income=true, category=Кешбэк, title=Вам кэшбэк, person=, balance=null)
+    Начислен кэшбэк за покупки 1 000 ₽. Доступно 20 000 ₽  =>  BankOp(amount=1000, income=true, category=Кешбэк, title=кэшбэк за покупки, person=, balance=20000)
+    Зачисление кешбэка 320 ₽  =>  BankOp(amount=320, income=true, category=Кешбэк, title=кешбэка, person=, balance=null)
+    Пополнение, счет RUB. 5 000 ₽. Доступно 7 000 ₽  =>  BankOp(amount=5000, income=true, category=Доход, title=Пополнение, person=, balance=7000)
+    Покупка 700 ₽ Магнит. Баланс 5 000 ₽. Карта действует до 10/28  =>  BankOp(amount=700, income=false, category=Продукты, title=Магнит, person=, balance=5000)
+    MIR-1234 14:05 Покупка 500р KOFEMANIYA Баланс: 12 345.67р  =>  BankOp(amount=500, income=false, category=Кафе, title=Kofemaniya, person=, balance=12346)
+BUILD SUCCESSFUL in 3m 35s
