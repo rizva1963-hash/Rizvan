@@ -437,7 +437,7 @@ fun ToggleRow(title: String, subtitle: String? = null, checked: Boolean, showSep
 
 /** Строка «подпись — значение ›» для карточек и настроек. */
 @Composable
-fun KvRow(label: String, value: String, showSep: Boolean = true, valueColor: Color? = null, chevron: Boolean = false, onClick: (() -> Unit)? = null, labelColor: Color? = null) {
+fun KvRow(label: String, value: String, showSep: Boolean = true, valueColor: Color? = null, chevron: Boolean = false, labelColor: Color? = null, onClick: (() -> Unit)? = null) {
     val p = LocalPal.current
     Row(
         Modifier
