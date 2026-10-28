@@ -160,7 +160,7 @@ fun DialHero(
             ) { Text(dateChip, color = Color(0xFFEDE7D4), fontSize = (12f * k).sp, fontWeight = FontWeight.Medium) }
 
             Column(
-                Modifier.align(Alignment.TopCenter).offset(y = (116f * k).dp).fillMaxWidth(),
+                Modifier.align(Alignment.TopCenter).offset(y = (110f * k).dp).fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text("баланс", color = DialMute, fontSize = (12.5f * k).sp)
@@ -186,11 +186,11 @@ fun DialHero(
 
             SubDial(
                 "доход", grp(income), if (income > 0) 0.77f else 0f, Mint, k,
-                Modifier.align(Alignment.TopStart).offset(x = ((179f - 58f - 34f) * k).dp, y = ((179f + 66f - 34f + 0f) * k).dp)
+                Modifier.align(Alignment.TopStart).offset(x = ((179f - 58f - 34f) * k).dp, y = ((179f + 66f - 34f + 8f) * k).dp)
             )
             SubDial(
                 "расход", grp(expense), if (income > 0) (expense.toFloat() / income).coerceIn(0f, 1f) else 0f, Lume, k,
-                Modifier.align(Alignment.TopStart).offset(x = ((179f + 58f - 34f) * k).dp, y = ((179f + 66f - 34f) * k).dp)
+                Modifier.align(Alignment.TopStart).offset(x = ((179f + 58f - 34f) * k).dp, y = ((179f + 66f - 34f + 8f) * k).dp)
             )
         }
     }

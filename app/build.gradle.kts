@@ -15,8 +15,8 @@ android {
         applicationId = "ru.riz.dohod"
         minSdk = 24
         targetSdk = 36
-        versionCode = 6
-        versionName = "3.1"
+        versionCode = 7
+        versionName = "3.2"
     }
 
     buildTypes {
